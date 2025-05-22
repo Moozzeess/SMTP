@@ -1,0 +1,9 @@
+[Unit]
+Description=Timer para ejecutar el servicio de envío de correos cada 5 minutos
+
+[Timer]
+Unit=deamon_correos.service
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

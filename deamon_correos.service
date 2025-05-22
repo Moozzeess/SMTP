@@ -1,0 +1,14 @@
+[Unit]
+Description=Servicio para enviar correos electrónicos
+After=network.target
+
+[Service]
+User=ss
+WorkingDirectory=/home/ss/Correos
+ExecStart=/usr/bin/python3 /home/ss/Correos/deamon.py
+
+StandardOutput=append:/var/log/correo_deamon.log
+StandardError=append:/var/log/correo_deamon_error.log
+
+[Install]
+WantedBy=multi-user.target
