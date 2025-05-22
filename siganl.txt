@@ -1,0 +1,212 @@
+import html
+import smtplib
+import mysql.connector
+import time
+import os
+import json 
+from datetime import datetime, timedelta 
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from smtplib import SMTPServerDisconnected
+
+# Configuración del servidor SMTP
+servidor_smtp = 'servidorexamplesmtp@domionio.com'
+puerto_smtp = 123
+Remitente = 'correo_remitente@dominio.com'
+contraseña_remitente = 'cotrasña_de_coreo_remitente'
+
+# Variables de configuración
+LIMITE_CORREOS_POR_EJECUCION = 100 # Cantidad máxima de correos a intentar enviar por cada ejecución del script
+LIMITE_DIARIO_CORREOS = 5000 # Límite diario de correos para evitar alertas de spam
+MAX_INTENTOS_CONEXION_SMTP = 3 # Intentos para restablecer la conexión SMTP
+ARCHIVO_CONTEO_DIARIO = '/ruta/de/destino/conteo_correos_diario.json'
+
+# Cargar el cuerpo del mensaje HTML
+def cargar_cuerpo_html(ruta_archivo):
+    try:
+        with open(ruta_archivo, 'r', encoding='utf-8') as archivo_html:
+            cuerpo = archivo_html.read()
+            print('Se ha cargado correctamente el archivo HTML.')
+            return cuerpo
+    except Exception as e:
+        print(f'No se ha podido cargar el cuerpo del mensaje: {e}')
+        return None
+
+# Conexión a la base de datos MySQL
+def conectar_bd():
+    try:
+        conexion = mysql.connector.connect(
+            host="host_de_mysql",
+            user="usuario",
+            password="contraseña de usuario",
+            database="nombre de la base"
+        )
+        print('Conexión establecida con la base de datos.\n')
+        return conexion
+    except Exception as e:
+        print(f" No se ha podido establecer la conexión con la BD: {e}")
+        return None
+
+# Conexión servidor SMTP
+def conectar_servidor_smtp():
+    for intento in range(MAX_INTENTOS_CONEXION_SMTP):
+        try:
+            server = smtplib.SMTP(servidor_smtp, puerto_smtp)
+            server.starttls()
+            server.login(Remitente, contraseña_remitente)
+            print('Se ha iniciado sesión correctamente con el servidor SMTP.\n')
+            return server
+        except Exception as e:
+            print(f"Fallo al conectar con el servidor SMTP: {e}")
+            time.sleep(5) # Esperar antes de reintentar
+    print("No se pudo conectar al servidor SMTP después de varios intentos.")
+    return None
+
+# Función para el conteo diario
+def cargar_conteo_diario():
+    try:
+        if os.path.exists(ARCHIVO_CONTEO_DIARIO):
+            with open(ARCHIVO_CONTEO_DIARIO, 'r') as f:
+                data = json.load(f)
+                return data.get('fecha', ''), data.get('conteo', 0)
+        return '', 0 # Retorna fecha vacía y conteo 0 si el archivo no existe
+    except json.JSONDecodeError as e:
+        print(f"Archivo de conteo diario corrupto o vacío. {e}")
+        return '', 0
+    except Exception as e:
+        print(f"Error al cargar el conteo diario. {e}")
+        return '', 0
+
+def guardar_conteo_diario(fecha_str, conteo):
+    try:
+        with open(ARCHIVO_CONTEO_DIARIO, 'w') as f:
+            json.dump({'fecha': fecha_str, 'conteo': conteo}, f)
+    except Exception as e:
+        print(f"No se pudo guardar el conteo diario: {e}")
+
+def main():
+    
+    # Cargar el cuerpo HTML
+    cuerpo_html = cargar_cuerpo_html('/home/ss/Correos/pruebas.html')
+    if cuerpo_html is None:
+        exit(1)
+
+    # Cargar el conteo diario y verificar la fecha
+    ultima_fecha, conteo_actual_diario = cargar_conteo_diario()
+    hoy = datetime.now().strftime('%Y-%m-%d')
+
+    if ultima_fecha != hoy:
+        print(f"Nuevo día detectado. (Anterior: {ultima_fecha}, Hoy: {hoy})")
+        conteo_actual_diario = 0
+        guardar_conteo_diario(hoy, conteo_actual_diario)
+    else:
+        print(f"Conteo diario actual: {conteo_actual_diario} de {LIMITE_DIARIO_CORREOS} permitidos.")
+
+    # Verificar si el límite diario ha sido alcanzado
+    if conteo_actual_diario >= LIMITE_DIARIO_CORREOS:
+        print(f"Límite diario de correos ({LIMITE_DIARIO_CORREOS}) alcanzado.")
+        exit(0) 
+
+    # Conexión a la base de datos
+    conexion_base = conectar_bd()
+    if conexion_base is None:
+        exit(1)
+
+    cursor = conexion_base.cursor(dictionary=True)
+
+    try:
+        # Obtener correos pendientes
+        correos_restantes_hoy = LIMITE_DIARIO_CORREOS - conteo_actual_diario
+        limite_esta_ejecucion = min(LIMITE_CORREOS_POR_EJECUCION, correos_restantes_hoy)
+
+        if limite_esta_ejecucion <= 0:
+            print("Se ha superado el límite de coreos por día.")
+            cursor.close()
+            conexion_base.close()
+            exit(0)
+
+        cursor.execute("SELECT ID, Correo FROM correos WHERE Estatus != 'Sí' LIMIT %s", (limite_esta_ejecucion,))
+        pendientes = cursor.fetchall()
+        print(f"Se han encontrado {len(pendientes)} correos pendientes.\n")
+
+        if not pendientes:
+            print("No hay correos nuevos por enviar en este momento.")
+            exit(0)
+
+        # Conexión al servidor SMTP
+        server_smtp = conectar_servidor_smtp()
+        if server_smtp is None:
+            exit(1) 
+
+        # Enviar correos
+        contador_correos_enviados_esta_ejecucion = 0
+        for row in pendientes:
+            if conteo_actual_diario >= LIMITE_DIARIO_CORREOS:
+                print(f"Límite diario de correos ({LIMITE_DIARIO_CORREOS}) alcanzado durante la ejecución.")
+                break
+
+            correo_destino = row['Correo']
+            correo_id = row['ID']
+
+            mensaje = MIMEMultipart('alternative')
+            mensaje['From'] = Remitente
+            mensaje['To'] = correo_destino
+            mensaje['Subject'] = "¡Opinemos en Papalote!"
+
+            mensaje.attach(MIMEText(cuerpo_html, 'html'))
+
+            try:
+                print(f'Enviando...')
+                server_smtp.sendmail(Remitente, correo_destino, mensaje.as_string())
+                print(f"Mensaje enviado correctamente a {correo_destino}.\n")
+
+                # Marcar el correo como enviado en la base de datos
+                cursor.execute("UPDATE correos SET Estatus = 'Sí' WHERE ID = %s", (correo_id,))
+                conexion_base.commit()
+
+                contador_correos_enviados_esta_ejecucion += 1
+                conteo_actual_diario += 1
+                guardar_conteo_diario(hoy, conteo_actual_diario) # Guardar el conteo actualizado
+                time.sleep(1.25) # Pausa después de enviar cada correo
+
+            except SMTPServerDisconnected as e:
+                print(f"Desconexión SMTP al enviar a {correo_destino}. ")
+                try:
+                    server_smtp.quit()
+                except Exception:
+                    pass
+
+                server_smtp = conectar_servidor_smtp()
+                if server_smtp is None:
+                    print("No se pudo reconectar al servidor SMTP.")
+                    break
+
+                print(f"El correo a {correo_destino} no se pudo enviar en este intento.")
+                break
+            except Exception as e:
+                print(f"Error Inesperado al enviar correo a {correo_destino}: {e}")
+                pass
+
+    except Exception as e:
+        exit(1)
+
+    finally:
+        if server_smtp:
+            try:
+                server_smtp.quit()
+                print('\nSesión SMTP cerrada.')
+            except Exception as e:
+                print(f"Error al cerrar la sesión SMTP: {e}")
+
+        if cursor:
+            cursor.close()
+            print('Cursor de la base de datos cerrado.')
+        if conexion_base:
+            conexion_base.close()
+            print('Conexión a la base de datos cerrada.')
+
+    print(f"\nSe han enviado {contador_correos_enviados_esta_ejecucion} correos en esta ejecución.")
+    print(f"Total de correos enviados hoy: {conteo_actual_diario}.")
+
+if __name__ == "__main__":
+    main()
