@@ -1,2 +1,46 @@
 # SMTP
 Enviar de forma masiva correos electrónicos, por proceso deamon y manual. En el proceso deamon se conecta con una base de datos en mysql, y genera un archivo jason para su control. Por otro lado, el envío de forma manual se lleva acabo mediante una base de datos de un archivo excel
+
+Considerar
+tenerlos todos los archivos en la misma carperta, salvo el timer y service
+
+Para ejecutar como solo mandar archivos de excel
+solo tenerlos en la misma carperta, y controlar manualmente los correos en archivo correo.xsl
+
+
+Para ejecutar como deamon se requiere 
+Conexión con mysql
+Linux
+python (instalar libreria import mysql.connector)
+Comandos en linux para ejecutarse
+//1. Sirve para recargar los deamon
+sudo systemctl daemon-reload 
+
+//2. Habilitar service ty timer
+sudo systemctl enable signal_correos.timer
+sudo systemctl enable signal_correos.service
+
+//3. iniciar deamon
+sudo systemctl start signal_correos.timer
+sudo systemctl start signal_correos.service
+
+//4. Mostrar estatus de deamon
+sudo systemctl status signal_correos.timer
+sudo systemctl status signal_correos.service
+
+//5. Comprobar errores
+journalctl -u signal_correos.service -f
+
+//Detener deamon
+sudo systemctl stop signal_correos.timer
+sudo systemctl stop signal_correos.service
+
+//Deshabilitar procesos deamon
+sudo systemctl disable signal_correos.timer
+sudo systemctl disable signal_correos.service
+
+//Verificar el archivo de conteo diario
+cat /home/ss/Correos/conteo_correos_diario.json
+
+//permite ver el contenido de un archivo
+tail -f /var/log/signal_correos.log
