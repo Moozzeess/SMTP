@@ -91,7 +91,7 @@ def guardar_conteo_diario(fecha_str, conteo):
     except Exception as e:
         print(f"No se pudo guardar el conteo diario: {e}")
 
-# Funciones para la fecha del último envío (para la validación "ayer se envió")
+# Funciones para la fecha del último envío (para la validación "ayer se envió"
 def cargar_fecha_ultimo_envio():
     try:
         if os.path.exists(ARCHIVO_FECHA_ULTIMO_ENVIO):
