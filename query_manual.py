@@ -3,8 +3,8 @@ import smtplib
 import mysql.connector
 import time
 import os
-import json 
-from datetime import datetime, timedelta 
+import json
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from smtplib import SMTPServerDisconnected
@@ -16,14 +16,15 @@ Remitente = 'correo@example.org.mx'
 contraseña_remitente = '123456789'
 
 # Variables de configuración del script
-LIMITE_CORREOS_POR_EJECUCION = 100 # Cantidad máxima de correos a intentar enviar por cada ejecución del script
+# LIMITE_CORREOS_POR_EJECUCION = 100 # Esta variable ya no se usará como límite directo en la consulta
 LIMITE_DIARIO_CORREOS = 5000 # Límite diario de correos para evitar alertas de spam
 MAX_INTENTOS_CONEXION_SMTP = 3 # Intentos para restablecer la conexión SMTP
 
 # Rutas de archivos
 ARCHIVO_CONTEO_DIARIO = '/ruta/de/Correos/conteo_correos_diario.json'
-ARCHIVO_FECHA_ULTIMO_ENVIO = '/ruta/de/Correos/fecha_ultimo_envio.json' # Nuevo archivo para registrar la fecha del último envío
-RUTA_CUERPO_HTML = '/ruta/de/Correos/archivo_como_cuerpo.html' # Ruta del archivo HTML del cuerpo del correo
+ARCHIVO_FECHA_ULTIMO_ENVIO = '/ruta/de/Correos/fecha_ultimo_envio.json'
+RUTA_CUERPO_HTML = '/ruta/de/Correos/archivo_como_cuerpo.html'
+ARCHIVO_CORREOS_ENVIADOS_DIA = '/ruta/de/Correos/correos_enviados_dia.json' # Nuevo archivo para registrar IDs de correos enviados
 
 # Configuración de conexión a la base de datos MySQL
 DB_CONFIG = {
@@ -76,7 +77,7 @@ def cargar_conteo_diario():
             with open(ARCHIVO_CONTEO_DIARIO, 'r') as f:
                 data = json.load(f)
                 return data.get('fecha', ''), data.get('conteo', 0)
-        return '', 0 # Retorna fecha vacía y conteo 0 si el archivo no existe
+        return '', 0
     except json.JSONDecodeError as e:
         print(f"Archivo de conteo diario corrupto o vacío. {e}")
         return '', 0
@@ -91,7 +92,7 @@ def guardar_conteo_diario(fecha_str, conteo):
     except Exception as e:
         print(f"No se pudo guardar el conteo diario: {e}")
 
-# Funciones para la fecha del último envío (para la validación "ayer se envió"
+# Funciones para la fecha del último envío
 def cargar_fecha_ultimo_envio():
     try:
         if os.path.exists(ARCHIVO_FECHA_ULTIMO_ENVIO):
@@ -113,9 +114,35 @@ def guardar_fecha_ultimo_envio(fecha_str):
     except Exception as e:
         print(f"No se pudo guardar la fecha del último envío: {e}")
 
+# Funciones para el registro de correos enviados por día
+def cargar_correos_enviados_dia(fecha_actual_sistema):
+    try:
+        if os.path.exists(ARCHIVO_CORREOS_ENVIADOS_DIA):
+            with open(ARCHIVO_CORREOS_ENVIADOS_DIA, 'r') as f:
+                data = json.load(f)
+                # Si la fecha en el archivo no coincide con la fecha actual del sistema, reiniciamos el registro
+                if data.get('fecha') == fecha_actual_sistema:
+                    return set(data.get('ids_enviados', []))
+                else:
+                    return set() # Nuevo día, resetear IDs
+        return set()
+    except json.JSONDecodeError as e:
+        print(f"Archivo de correos enviados del día corrupto o vacío. {e}")
+        return set()
+    except Exception as e:
+        print(f"Error al cargar los correos enviados del día. {e}")
+        return set()
+
+def guardar_correos_enviados_dia(fecha_actual_sistema, ids_enviados):
+    try:
+        with open(ARCHIVO_CORREOS_ENVIADOS_DIA, 'w') as f:
+            json.dump({'fecha': fecha_actual_sistema, 'ids_enviados': list(ids_enviados)}, f)
+    except Exception as e:
+        print(f"No se pudo guardar los correos enviados del día: {e}")
+
 
 def main():
-    
+
     # Cargar el cuerpo como HTML
     cuerpo_html = cargar_cuerpo_html(RUTA_CUERPO_HTML)
     if cuerpo_html is None:
@@ -125,32 +152,37 @@ def main():
         fecha_manual_str = input("Fecha (dd/mm/aaaa): ")
         try:
             fecha_dt = datetime.strptime(fecha_manual_str, '%d/%m/%Y')
-            break 
+            break
         except ValueError:
             print("Formato de fecha incorrecto. Por favor, usa dd/mm/aaaa.")
 
     hoy_str = fecha_manual_str # La fecha manual es la 'hoy' para la consulta SQL
-    hoy_dt = fecha_dt 
+    hoy_dt = fecha_dt
 
     ayer_dt = hoy_dt - timedelta(days=1)
     ayer_str = ayer_dt.strftime('%d/%m/%Y') # Formato dd/mm/aaaa para la validación
 
     # Cargar el conteo diario y verificar la fecha
     ultima_fecha, conteo_actual_diario = cargar_conteo_diario()
-    
+
     # La comparación de fecha para el conteo diario se basa en la fecha real del sistema
     fecha_actual_sistema = datetime.now().strftime('%Y-%m-%d')
     if ultima_fecha != fecha_actual_sistema:
         print(f"Nuevo día del sistema detectado para el conteo diario. (Anterior: {ultima_fecha}, Hoy: {fecha_actual_sistema})")
         conteo_actual_diario = 0
         guardar_conteo_diario(fecha_actual_sistema, conteo_actual_diario)
+        # Si es un nuevo día, también reiniciamos el registro de IDs de correos enviados
+        guardar_correos_enviados_dia(fecha_actual_sistema, set())
     else:
         print(f"Conteo diario actual: {conteo_actual_diario} de {LIMITE_DIARIO_CORREOS} permitidos.")
+
+    # Cargar los IDs de correos ya enviados para la fecha actual del sistema
+    ids_correos_enviados_hoy = cargar_correos_enviados_dia(fecha_actual_sistema)
 
     # Verificar si el límite diario ha sido alcanzado
     if conteo_actual_diario >= LIMITE_DIARIO_CORREOS:
         print(f"Se ha alcanzado el límite de correos permitidos por día. ({LIMITE_DIARIO_CORREOS})")
-        exit(0) 
+        exit(0)
 
     # Conexión a la base de datos
     conexion_base = conectar_bd()
@@ -168,17 +200,21 @@ def main():
             print(f"No se detectaron envíos para la fecha {ayer_str}. Los correos para {hoy_str} no serán enviados.")
             pass
         """
-        # Obtener correos pendientes para la fecha manual
-        correos_restantes_hoy = LIMITE_DIARIO_CORREOS - conteo_actual_diario
-        limite_esta_ejecucion = min(LIMITE_CORREOS_POR_EJECUCION, correos_restantes_hoy)
+        # Primero, obtener el total de registros que cumplen la condición para la fecha_manual_str
+        sql_count_query = """
+        SELECT COUNT(*) AS total_registros
+        FROM  order_data AS t1
+        INNER JOIN order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order
+        WHERE t1.fecha = %s AND t2.codigo = '00' AND t2.Message = 'completed'
+        """
+        cursor.execute(sql_count_query, (hoy_str,))
+        total_registros_bd = cursor.fetchone()['total_registros']
+        print(f"Se han encontrado un total de {total_registros_bd} correos para la fecha {hoy_str}.\n")
 
-        if limite_esta_ejecucion <= 0:
-            print("Se ha superado el límite de correos por día o no hay correos restantes para enviar.")
-            cursor.close()
-            conexion_base.close()
+        if total_registros_bd == 0:
+            print(f"No hay correos nuevos por enviar en este momento para la fecha {hoy_str}.")
             exit(0)
 
-        # Consulta SQL
         sql_query = """
         SELECT
             t1.email,
@@ -195,11 +231,10 @@ def main():
             t1.fecha = %s
             AND t2.codigo = '00'
             AND t2.Message = 'completed'
-        LIMIT %s
         """
-        cursor.execute(sql_query, (hoy_str, limite_esta_ejecucion))
+        cursor.execute(sql_query, (hoy_str,))
         pendientes = cursor.fetchall()
-        print(f"Se han encontrado {len(pendientes)} correos. {hoy_str}.\n")
+        print(f"Se han cargado {len(pendientes)} correos de la base de datos para la fecha {hoy_str}.\n")
 
         if not pendientes:
             print(f"No hay correos nuevos por enviar en este momento.")
@@ -208,17 +243,22 @@ def main():
         # Conexión al servidor SMTP
         server_smtp = conectar_servidor_smtp()
         if server_smtp is None:
-            exit(1) 
+            exit(1)
 
         # Enviar correos
         contador_correos_enviados_esta_ejecucion = 0
         for row in pendientes:
+            correo_id = row['id']
+            # Saltar el correo si ya fue enviado en la fecha del sistema actual
+            if correo_id in ids_correos_enviados_hoy:
+                print(f"El correo con ID {correo_id} ya fue enviado hoy. Saltando.")
+                continue
+
             if conteo_actual_diario >= LIMITE_DIARIO_CORREOS:
                 print(f"Límite diario de correos ({LIMITE_DIARIO_CORREOS}) alcanzado.")
                 break
 
-            correo_destino = row['email'] 
-            correo_id = row['id'] 
+            correo_destino = row['email']
 
             mensaje = MIMEMultipart('alternative')
             mensaje['From'] = Remitente
@@ -228,15 +268,18 @@ def main():
             mensaje.attach(MIMEText(cuerpo_html, 'html'))
 
             try:
-                print(f'Enviando...')
+                print(f'Enviando correo con ID: {correo_id} a {correo_destino}...')
                 server_smtp.sendmail(Remitente, correo_destino, mensaje.as_string())
                 print(f"Mensaje enviado correctamente a {correo_destino}.\n")
 
-                # Actualizar el conteo y la fecha de último envío
+                # Actualizar el conteo, el registro de IDs enviados y la fecha de último envío
                 contador_correos_enviados_esta_ejecucion += 1
                 conteo_actual_diario += 1
-                guardar_conteo_diario(fecha_actual_sistema, conteo_actual_diario) # Guardar el conteo diario con la fecha REAL del sistema
-                guardar_fecha_ultimo_envio(hoy_str) # Guardar la fecha de último envío como la fecha manual que se acaba de procesar
+                ids_correos_enviados_hoy.add(correo_id) # Agregar el ID al set de enviados
+
+                guardar_conteo_diario(fecha_actual_sistema, conteo_actual_diario)
+                guardar_correos_enviados_dia(fecha_actual_sistema, ids_correos_enviados_hoy)
+                guardar_fecha_ultimo_envio(hoy_str)
                 time.sleep(1.25) # Pausa después de enviar cada correo
 
             except SMTPServerDisconnected as e:
@@ -252,11 +295,11 @@ def main():
                     break
 
                 print(f"El correo {correo_destino} no se pudo enviar.")
-                pass 
+                pass
 
             except Exception as e:
                 print(f"Error Inesperado al enviar correo a {correo_destino}: {e}\n")
-                pass 
+                pass
 
     except Exception as e:
         print(f"Error inesperado en el proceso principal: {e}")
@@ -277,8 +320,8 @@ def main():
             conexion_base.close()
             print('Conexión a la base de datos cerrada.')
 
-    print(f"\nSe han enviado {contador_correos_enviados_esta_ejecucion} correos.")
-    print(f"Total de correos enviados: {conteo_actual_diario}.\n")
+    print(f"\nSe han enviado {contador_correos_enviados_esta_ejecucion} correos en esta ejecución.")
+    print(f"Total de correos enviados hoy (acumulado): {conteo_actual_diario}.\n")
 
 if __name__ == "__main__":
     main()
