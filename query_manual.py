@@ -194,28 +194,27 @@ def main():
     try:
         # Validar si se enviaron correos el día anterior a la fecha manual
         ultima_fecha_envio_registrada = cargar_fecha_ultimo_envio()
-        """
-        # Si la fecha de envío registrada NO es el día anterior a la fecha manual, se detiene exit(0)
-        if ultima_fecha_envio_registrada != ayer_str and ultima_fecha_envio_registrada != '':
-            print(f"No se detectaron envíos para la fecha {ayer_str}. Los correos para {hoy_str} no serán enviados.")
-            pass
-        """
-        # Primero, obtener el total de registros que cumplen la condición para la fecha_manual_str
+        
         sql_count_query = """
-        SELECT COUNT(*) AS total_registros
-        FROM  order_data AS t1
-        INNER JOIN order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order
-        WHERE t1.fecha = %s AND t2.codigo = '00' AND t2.Message = 'completed'
+        SELECT
+            COUNT(*) AS total_registros
+        FROM
+            order_data AS t1
+        INNER JOIN
+            order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order
+        WHERE
+            t1.fecha = %s
+            AND t2.codigo = '00'
+            AND t2.Message = 'completed'
         """
         cursor.execute(sql_count_query, (hoy_str,))
         total_registros_bd = cursor.fetchone()['total_registros']
-        print(f"Se han encontrado un total de {total_registros_bd} correos para la fecha {hoy_str}.\n")
+        print(f"La consulta SQL arrojó un total de {total_registros_bd} correos para la fecha {hoy_str}.\n")
 
         if total_registros_bd == 0:
             print(f"No hay correos nuevos por enviar en este momento para la fecha {hoy_str}.")
             exit(0)
-
-        sql_query = """
+sql_query = """
         SELECT
             t1.email,
             t1.fecha,
