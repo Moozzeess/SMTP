@@ -1,5 +1,6 @@
 # SMTP
-Enviar de forma masiva correos electrónicos, por proceso deamon y manual. En el proceso deamon se conecta con una base de datos en mysql, y genera un archivo jason para su control. Por otro lado, el envío de forma manual se lleva acabo mediante una base de datos de un archivo excel
+Enviar de forma masiva correos electrónicos, por proceso deamon y manual. En el proceso deamon se conecta con una base de datos en mysql, y genera un archivo jason para su control. 
+Por otro lado, el envío de forma manual se lleva acabo mediante una base de datos de un archivo excel y este requiere tener control humano.
 
 Considerar
 tenerlos todos los archivos en la misma carperta, salvo el timer y service comunmente se guardan en /etc/systemd/system
@@ -9,13 +10,16 @@ solo tenerlos en la misma carperta, y controlar manualmente los correos en archi
 
 Si se quiere ejecutar que el usuario ponga la fecha en la consola se ejecuta el script: query_manual.py
 
-Para ejecutar como deamon (query_automatizado.py) se requiere 
-Conexión con mysql
-Linux
-python (instalar libreria import mysql.connector)
+Hay una diferencia entre deamon_correos y query_automatizado: Uno se ejecuta sin restricciones en la base de datos, por decir, se puede agregar una columna de Estatus, manipuilar sentencias, etc.
+El query_automatizado.py lleva un manejo más complicado, utilza archivos jason para cuando hay restricciones en la base de datos con ciertos filtros para contabilizar los ID, los días que se enviaron yun conteo de cuantos se envíaron. 
+
+Para ejecutar como deamon (query_automatizado.py o deamon_correos.py) se requiere 
+1. Conexión con mysql
+2. Linux
+3. python (instalar libreria import mysql.connector)
 
 
-Comandos en linux para ejecutarse
+Comandos en linux para ejecutarse el deamon
 
 
 //1. Sirve para recargar los deamon
