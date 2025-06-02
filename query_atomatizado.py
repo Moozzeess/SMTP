@@ -1,10 +1,10 @@
 """              CONTEMPLAR ANTES DE EJECUTAR:
-                              Considerar colocar los datos reales en la configuración de la BASE DE DATOS EN LA QUE SE VA A TRABAJAR
-                              COLOCAR LA CONFIGURACIÓN DEL SERVIDOR DE CORREO ya sea MICRSOFT, GMAIL, ETC.
-                              Las rutas de trabajo es el directorio donde se va a trabajar o donde está guaradao el script. Mantener en la misma carpeta todos los archivos.
-                              Colocar el nombre de archivo html que se va a trabajar (linea 34)
-                              Cambiar el asunto del correo (línea 288) 
-                              Si se va a filtrar el query de la base de datos (línea 229 y 237) primero probarlo en MySQL"""
+            Considerar colocar los datos reales en la configuración de la BASE DE DATOS EN LA QUE SE VA A TRABAJAR
+            COLOCAR LA CONFIGURACIÓN DEL SERVIDOR DE CORREO ya sea MICRSOFT, GMAIL, ETC.
+            Las rutas de trabajo es el directorio donde se va a trabajar o donde está guaradao el script. Mantener en la misma carpeta todos los archivos.
+            Colocar el nombre de archivo html que se va a trabajar (linea 34)
+            Cambiar el asunto del correo (línea 288) 
+            Si se va a filtrar el query de la base de datos (línea 229 y 237) primero probarlo en MySQL"""
 import html
 import smtplib
 import mysql.connector
