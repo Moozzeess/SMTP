@@ -1,3 +1,10 @@
+"""              CONTEMPLAR ANTES DE EJECUTAR:
+                                                        Considerar colocar los datos reales en la configuración de la BASE DE DATOS EN LA QUE SE VA A TRABAJAR
+                                                        COLOCAR LA CONFIGURACIÓN DEL SERVIDOR DE CORREO ya sea MICRSOFT, GMAIL, ETC.
+                                                        Las rutas de trabajo es el directorio donde se va a trabajar o donde está guaradao el script. Mantener en la misma carpeta todos los archivos.
+                                                        Colocar el nombre de archivo html que se va a trabajar (linea 34)
+                                                        Cambiar el asunto del correo (línea 288) 
+                                                        Si se va a filtrar el query de la base de datos (línea 229 y 237) primero probarlo en MySQL"""
 import html
 import smtplib
 import mysql.connector
@@ -9,29 +16,29 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from smtplib import SMTPServerDisconnected
 
-# Configuración del servidor SMTP
-servidor_smtp = 'smtp.office365.com'
-puerto_smtp = 587
-Remitente = 'feedback@papalote.org.mx'                                          #servicio.sistemas@papalote.org.mx      
-contraseña_remitente = 'uyKpC7pPA1f339'                                         #'Servicio_ss25'
+# Configuración del servidor SMTP Cambiar por el servidor de preferencia
+servidor_smtp = 'smtp.dominio.com'
+puerto_smtp = 123
+Remitente = 'correo_remitente@dominio.com'                                            
+contraseña_remitente = 'contraseña_correo_remitente'                                    
 
 # Variables de configuración del script
 LIMITE_DIARIO_CORREOS = 5000                                                    #Límite diario de correos para evitar alertas de spam
 MAX_INTENTOS_CONEXION_SMTP = 3                                                  #Intentos para restablecer la conexión SMTP
 LIMITE_CORREOS_POR_EJECUCION = 200                                              #Límite de correos por ejecución del demonio activado en ese momento
 
-# Rutas de archivos
-ARCHIVO_CONTEO_DIARIO = '/home/ss/Correos/conteo_correos_diario.json'           #Archivo para contabilizar los correos que se han enviado diario
-ARCHIVO_FECHA_ULTIMO_ENVIO = '/home/ss/Correos/fecha_ultimo_envio.json'         #Archivo para registrar la última fecha en que se envío
-RUTA_CUERPO_HTML = '/home/ss/Correos/mensaje.html'                              #Archivo HTML del cuerpo del mensaje
-ARCHIVO_CORREOS_ENVIADOS_DIA = '/home/ss/Correos/correos_enviados_dia.json'     #Archivo para registrar IDs de correos enviados
+# Rutas de archivos deonde se va a trabajar
+ARCHIVO_CONTEO_DIARIO = '/ruta_de_trabajo/conteo_correos_diario.json'           #Archivo para contabilizar los correos que se han enviado diario
+ARCHIVO_FECHA_ULTIMO_ENVIO = '/ruta_de_trabajo/fecha_ultimo_envio.json'         #Archivo para registrar la última fecha en que se envío
+RUTA_CUERPO_HTML = '/ruta_de_trabajo/Correos/archivo.html'                      #Archivo HTML del cuerpo del mensaje
+ARCHIVO_CORREOS_ENVIADOS_DIA = '/ruta_de_trabajo/correos_enviados_dia.json'     #Archivo para registrar IDs de correos enviados
 
-# Configuración de conexión a la base de datos MySQL
+# Configuración de conexión a la base de datos MySQL                            
 DB_CONFIG = {
-    "host": "192.168.2.81",
-    "user": "admindb",
-    "password": "qej8h.eg",
-    "database": "compraenlinea_wapps"
+    "host": "IP donde esta la base",
+    "user": "nombre de usuario de la base de datos",
+    "password": "contraseña_bd",
+    "database": "nombre de la base de datos a trabajar"
 }
 def conectar_bd():
     try:
@@ -163,7 +170,7 @@ def main():
         try:
             # Convierte la fecha registrada a datetime
             fecha_inicio_procesamiento = datetime.strptime(ultima_fecha_completada_str, '%d/%m/%Y')
-            print(f"Última fecha completada registrada: {ultima_fecha_completada_str}.")
+            print(f"Última fecha completada registrada: {ultima_fecha_completada_str}.\n")
             fecha_inicio_procesamiento += timedelta(days=1)
         except ValueError:
             print("Formato de la última fecha procesada incorrecto. Iniciando desde una fecha manual.")
@@ -189,7 +196,7 @@ def main():
 
     conteo_actual_diario = conteos_diarios_historicos.get(fecha_actual_sistema_str, 0)
 
-    print(f"Conteo diario actual para {fecha_actual_sistema_str}: {conteo_actual_diario} de {LIMITE_DIARIO_CORREOS} permitidos.")
+    print(f"Conteo diario actual para {fecha_actual_sistema_str}: {conteo_actual_diario} de {LIMITE_DIARIO_CORREOS} permitidos.\n")
 
     current_date_to_process = fecha_inicio_procesamiento
 
@@ -200,8 +207,8 @@ def main():
         hoy_str = fecha_a_procesar_dt.strftime('%d/%m/%Y')
 
         if conteo_actual_diario >= LIMITE_DIARIO_CORREOS:
-            print(f"Se ha alcanzado el límite de correos permitidos por día ({LIMITE_DIARIO_CORREOS}) para la fecha del sistema {fecha_actual_sistema_str}.")
-            print(f"El script se detendrá por hoy. Continuará mañana.")
+            print(f"Se ha alcanzado el límite de correos permitidos por día ({LIMITE_DIARIO_CORREOS}) para la fecha del sistema {fecha_actual_sistema_str}.\n")
+            print(f"El script se detendrá por hoy. Continuará mañana.\n")
             break
 
         # Conexión a la base de datos
@@ -218,32 +225,14 @@ def main():
 
             # Consulta para contar los correos que cumplen con la restricción
             sql_count_query = """
-                SELECT COUNT(*) AS total_registros
-                FROM order_data AS t1
-                INNER JOIN order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order
-                WHERE t1.fecha_visita = %s
-                    AND t2.Ds_ErrorCode = '00'
-                    AND t2.Ds_ErrorMessage = 'completed'
-                    AND NOT t1.email IN ('alberto.silva@papalote.org.mx', 'alejandracervantesm@gmail.com') """
+                SELECT COUNT(*) AS TABLA FROM BASE_DATOS """
             cursor.execute(sql_count_query, (hoy_str,))
             total_registros_bd = cursor.fetchone()['total_registros']
             print(f"La consulta SQL arrojó un total de {total_registros_bd} correos para la fecha {hoy_str}.")
 
             # Sentencia SQL para obtener los correos pendientes
             sql_query = """
-                SELECT
-                    t1.email,
-                    t1.fecha_visita,
-                    t1.Ds_Merchant_Order,
-                    t2.Ds_Order,
-                    t2.Ds_ErrorCode,
-                    t2.Ds_ErrorMessage
-                FROM order_data AS t1 INNER JOIN order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order
-                WHERE
-                    t1.fecha_visita = %s
-                    AND t2.Ds_ErrorCode = '00'
-                    AND t2.Ds_ErrorMessage = 'completed'
-                    AND NOT t1.email IN ('alberto.silva@papalote.org.mx', 'alejandracervantesm@gmail.com') """
+                SELECT elemento de tabla FROM tabla WHERE condición """
             cursor.execute(sql_query, (hoy_str,))
             # Filtrar los ya enviados directamente desde la lista obtenida
             pendientes = [row for row in cursor.fetchall() if row['Ds_Merchant_Order'] not in ids_correos_enviados_para_esta_fecha]
@@ -258,7 +247,7 @@ def main():
                     continue
                 else: # Es la fecha actual del sistema y no hay pendientes. El script debe terminar.
                     print(f"Todos los correos para el día actual ({hoy_str}) han sido procesados o no hay nuevos pendientes.")
-                    print("El script se detendrá y esperará la próxima ejecución del daemon.")
+                    print("El script se detendrá y esperará la próxima ejecución del daemon.\n")
                     cursor.close()
                     conexion_base.close()
                     break # SALIDA CRÍTICA: Sale del bucle principal para que el daemon lo reactive.
@@ -277,7 +266,7 @@ def main():
 
                 # Verificar el límite diario del sistema antes de enviar
                 if conteo_actual_diario >= LIMITE_DIARIO_CORREOS:
-                    print(f"Límite diario de correos ({LIMITE_DIARIO_CORREOS}) alcanzado para la fecha del sistema {fecha_actual_sistema_str}.")
+                    print(f"Límite diario de correos ({LIMITE_DIARIO_CORREOS}) alcanzado para la fecha del sistema {fecha_actual_sistema_str}.\n")
                     print(f"El script se detendrá por hoy. Continuará mañana.")
                     if server_smtp: server_smtp.quit()
                     interrupted_by_execution_limit = True
@@ -285,7 +274,7 @@ def main():
 
                 # Verificar el límite de correos por ejecución
                 if contador_correos_enviados_esta_ejecucion >= LIMITE_CORREOS_POR_EJECUCION:
-                    print(f"Se alcanzó el límite de {LIMITE_CORREOS_POR_EJECUCION} correos por esta ejecución para la fecha {hoy_str}.")
+                    print(f"Se alcanzó el límite de {LIMITE_CORREOS_POR_EJECUCION} correos por esta ejecución para la fecha {hoy_str}.\n")
                     print("El demonio se reactivará para continuar con esta misma fecha.")
                     if server_smtp: server_smtp.quit()
                     interrupted_by_execution_limit = True # Marca que se interrumpió por este límite
@@ -296,13 +285,13 @@ def main():
                 mensaje = MIMEMultipart('alternative')
                 mensaje['From'] = Remitente
                 mensaje['To'] = correo_destino
-                mensaje['Subject'] = "Opinemos en papalote"
+                mensaje['Subject'] = "Asunto del correo a mandar"
                 mensaje.attach(MIMEText(cuerpo_html, 'html'))
 
                 try:
                     print(f'Enviando...')
                     server_smtp.sendmail(Remitente, correo_destino, mensaje.as_string())
-                    print(f"[{contador_correos_enviados_esta_ejecucion+1}] Mensaje enviado correctamente a {correo_destino}, correo (ID: {correo_id}).")
+                    print(f"[{contador_correos_enviados_esta_ejecucion+1}] Mensaje enviado correctamente a {correo_destino}, correo (ID: {correo_id}).\n")
 
                     # Actualiza el conteo diario (basado en la fecha del SISTEMA)
                     contador_correos_enviados_esta_ejecucion += 1
@@ -336,7 +325,7 @@ def main():
             if server_smtp:
                 try:
                     server_smtp.quit()
-                    print('Sesión SMTP cerrada para la fecha actual de procesamiento.')
+                    print('Sesión SMTP cerrada para la fecha actual de procesamiento.\n')
                 except Exception as e:
                     print(f"Error al cerrar la sesión SMTP para la fecha {hoy_str}: {e}")
 
@@ -369,7 +358,7 @@ def main():
                 print(f'Conexión a la base de datos cerrada para la fecha {hoy_str}.')
 
     print(f"Última fecha completada registrada: {cargar_fecha_ultimo_envio() if cargar_fecha_ultimo_envio() else 'Ninguna fecha completa.'}")
-    print(f"Total de correos enviados hoy ({fecha_actual_sistema_str}): {conteos_diarios_historicos.get(fecha_actual_sistema_str, 0)}.")
+    print(f"Total de correos enviados hoy ({fecha_actual_sistema_str}): {conteos_diarios_historicos.get(fecha_actual_sistema_str, 0)}.\n\n")
 
 
 if __name__ == "__main__":
