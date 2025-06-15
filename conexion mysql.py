@@ -2,10 +2,10 @@ import mysql.connector
 
 try:
     conexion_base=mysql.connector.connect(
-        host="192.168.2.81",
-        user="admindb",
-        password="qej8h.eg",
-        database="compraenlinea_wapps" 
+        host="localhost",
+        user="root",
+        password="root",
+        database="sys" 
     )
     cursor=conexion_base.cursor(dictionary=True)
     print('Conexión establecida con la base de datos')
