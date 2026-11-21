@@ -204,12 +204,9 @@ def main():
         ultima_fecha_envio_registrada = cargar_fecha_ultimo_envio()
 
         #Consulta para contar los correos que cumplen con la restricción y envíar esa cantidad
-        sql_count_query = """ SELECT COUNT(*) AS total_registros FROM order_data AS t1
-            INNER JOIN order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order 
-            WHERE t1.fecha_visita = %s 
-                AND t2.Ds_ErrorCode = '00' 
-                AND t2.Ds_ErrorMessage = 'completed' 
-                AND email = 'alberto.silva@papalote.org.mx' """
+        sql_count_query = """ 
+        COLOCAR SENTENCIA ADECUADA A LAS NECESESIDADES
+            """
 
         cursor.execute(sql_count_query, (hoy_str,))
         total_registros_bd = cursor.fetchone()['total_registros']
@@ -220,20 +217,9 @@ def main():
             exit()
         
         #Sentencia en SQL que perimte la restricción de si pago el usuario y el código en línea es 00
-        sql_query = """ SELECT
-                t1.email,
-                t1.fecha_visita,
-                t1.Ds_Merchant_Order,
-                t2.Ds_Order,
-                t2.Ds_ErrorCode,
-                t2.Ds_ErrorMessage
-            FROM order_data AS t1 INNER JOIN
-                order_data_online AS t2 ON t1.Ds_Merchant_Order = t2.Ds_Order
-            WHERE
-                t1.fecha_visita = %s
-                AND t2.Ds_ErrorCode = '00'
-                AND t2.Ds_ErrorMessage = 'completed'
-                AND email = 'alberto.silva@papalote.org.mx' """
+        sql_query = """ 
+        COLOCAR SENTENCIA ADECUADA A LAS NECESESIDADES
+        """
 
         cursor.execute(sql_query, (hoy_str,))
         pendientes = cursor.fetchall()
@@ -250,7 +236,7 @@ def main():
         # Enviar correos
         contador_correos_enviados_esta_ejecucion = 0
         for row in pendientes:
-            correo_id = row['Ds_Merchant_Order']
+            correo_id = row['FILA A CONSULTAR']
 
             # Saltar el correo si ya fue enviado en la fecha del sistema actual
             if correo_id in ids_correos_enviados_para_esta_fecha:
@@ -266,7 +252,7 @@ def main():
             mensaje = MIMEMultipart('alternative')
             mensaje['From'] = Remitente
             mensaje['To'] = correo_destino
-            mensaje['Subject'] = "Opinemos en papalote"
+            mensaje['Subject'] = "ASUNTO CORREO"
 
             mensaje.attach(MIMEText(cuerpo_html, 'html'))
 
