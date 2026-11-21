@@ -10,27 +10,27 @@ from email.mime.multipart import MIMEMultipart
 from smtplib import SMTPServerDisconnected
 
 # Configuración del servidor SMTP
-servidor_smtp = 'smtp.office365.com'
-puerto_smtp = 587
-Remitente = 'servicio.sistemas@papalote.org.mx' #'feedback@papalote.org.mx'
-contraseña_remitente = 'Servicio_ss25' #'uyKpC7pPA1f339'
+servidor_smtp = ''
+puerto_smtp = 
+Remitente = ''
+contraseña_remitente = ''
 
 # Variables de configuración del script
 LIMITE_DIARIO_CORREOS = 10000 # Límite diario de correos para evitar alertas de spam
 MAX_INTENTOS_CONEXION_SMTP = 3 # Intentos para restablecer la conexión SMTP
 
 # Rutas de archivos
-ARCHIVO_CONTEO_DIARIO = '/home/ss/Correos/conteo_correos_diario.json'           #Archivo para contabilizar los correos que se han enviado diario
-ARCHIVO_FECHA_ULTIMO_ENVIO = '/home/ss/Correos/fecha_ultimo_envio.json'         #Archivo para registrar la última fecha en que se envío
-RUTA_CUERPO_HTML = '/home/ss/Correos/pruebas.html'                              #Archivo HTML del cuerpo del mensaje
-ARCHIVO_CORREOS_ENVIADOS_DIA = '/home/ss/Correos/correos_enviados_dia.json'     #Archivo para registrar IDs de correos enviados
+ARCHIVO_CONTEO_DIARIO = '/home/Correos/conteo_correos_diario.json'           #Archivo para contabilizar los correos que se han enviado diario
+ARCHIVO_FECHA_ULTIMO_ENVIO = '/home/Correos/fecha_ultimo_envio.json'         #Archivo para registrar la última fecha en que se envío
+RUTA_CUERPO_HTML = '/home/Correos/pruebas.html'                              #Archivo HTML del cuerpo del mensaje
+ARCHIVO_CORREOS_ENVIADOS_DIA = '/home/Correos/correos_enviados_dia.json'     #Archivo para registrar IDs de correos enviados
 
 # Configuración de conexión a la base de datos MySQL
 DB_CONFIG = {
-    "host": "192.168.2.81",
-    "user": "admindb",
-    "password": "qej8h.eg",
-    "database": "compraenlinea_wapps"
+    "host": "",
+    "user": "",
+    "password": "",
+    "database": ""
 }
 
 # Conexión a la base de datos MySQL
